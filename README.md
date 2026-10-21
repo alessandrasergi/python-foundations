@@ -98,3 +98,35 @@ non è un intero o è negativo ferma la lettura del lotto.
         - Evitato .get() silenzioso sui campi obbligatori per fare emergere i KeyError.
         - Gestione sicura delle stringhe nei documenti tramite int() protetto da try/except.
 
+    ## Prova del collega
+        Tempo impiegato: 2 minuti.
+        Nessun blocco eseguendo il comando da terminale pulito.
+
+
+
+# Esercitazione G2: sviluppo estensione 1, gli importi come li scrive una persona
+
+    #Scelta della strada e motivazioni
+    Parsing basato su stringhe e calcolo intero in centesimi (euro * 100 + centesimi), senza passare per i numeri in virgola mobile (float).
+
+        - Precisione finanziaria: Evita alla radice i problemi di arrotondamento binario tipici dei tipi float nei calcoli monetari.
+
+        - Rispetto dello standard italiano: Gestisce correttamente il punto come separatore delle migliaia e la virgola come separatore decimale, normalizzando i formati umani (es. ,5 a 50 centesimi).
+
+        - Resilienza e robustezza: Integra validazioni preventive contro importi negativi, stringhe vuote e formati ambigui o scorretti, garantendo coerenza con i tracciati di archivio.
+
+    #Misure prima e dopo
+        - Prima (Approccio float/sostituzione): Incapace di gestire correttamente i separatori delle migliaia (es. 1.250,00 errato) e soggetto a imprecisioni sui decimali (es. 0,29 errato).
+
+        - Dopo (Approccio intero su stringhe): 100% di test superati (34/34), lettura accurata di tutti i formati operativi del back-office e zero centesimi persi.
+
+    #Revisione del codice scritto con l'AI
+        Il supporto dell'intelligenza artificiale ha permesso di accelerare la stesura della logica di split e dei casi limite con @pytest.mark.parametrize.
+
+    Rilievo deciso di non correggere: 
+        Il codice non implementa un controllo formale rigido sul numero esatto di cifre tra un punto e l'altro delle         migliaia (es. accetta formalmente stringhe con formati di spaziatura personalizzati purché senza cifre decimali anomale). Si è scelto di lasciarlo così poiché i dati in ingresso provengono esclusivamente da operatori umani guidati da schermate standardizzate, rendendo superflua una espressione regolare troppo complessa che avrebbe ridotto la leggibilità del codice.
+
+    #Test di usabilità (Prova del collega)
+        Tempo impiegato: 6 minuti.
+
+        Primo blocco riscontrato: Esecuzione iniziale di pytest senza passare attraverso il gestore di ambiente (uv run). Risolto seguendo le istruzioni esplicite presenti nel README.
