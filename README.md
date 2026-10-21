@@ -1,77 +1,100 @@
-# Nova-Smistamento (Estensione 3: Richieste dal Portale)
+# nova-smistamento
 
-## smista.py
-gestisce i duplicati tramite la tupla (tenat,id), pulisce gli oggetti senza alterare il lotto originale, applica le regole di smistamento assegnando la categoria e produce un riepilogo finale con i conteggi.
+Strumento per elaborare i pacchetti di richieste che il sistema di Nova Assicurazioni genera quotidianamente. Il programma assegna a ciascuna pratica un'etichetta ben definita (`da_completare`, `da_rivedere` o `ordinaria`) e chiude con il resoconto numerico complessivo. 
 
-## smista-dal-portale.py
-è la versione con le modifiche per l'estensione numero 3 ovvero quella di leggere dati dal portale online
+## Requisiti
 
-## lotto.py 
-sono i dati in input che vengono importati per lo smistamento in smista.py
+- [uv](https://docs.astral.sh/uv/) installato. Python 3.12 lo procura uv da sé.
 
-## Come avviarlo
+## Come si avvia
 
-bash - uv run python smista.py
+Dalla cartella del progetto principale dove trovi il file `pyproject.toml`:
 
-## Strada scelta e difesa
+```bash
+uv run python -m nova                              # analizza il file predefinito dati/lotto.json
+uv run python -m nova dati/lotto_con_errori.json   # si blocca segnalando l'anomalia da corregere
+```
 
-Si è optato per l'estensione 3, quindi quella di distinguere rigorosamente tra campi mancanti nel portale (segnalati a Ivan come anomalia tecnica) e valori None (pratiche da far completare al cliente).
+Il codice di uscita è `0` se il lotto è stato smistato, `1` se il file non si legge o una richiesta non è valida.
 
-Evitando l'uso indiscriminato di .get() sui dati obbligatori per impedire che errori strutturali del portale finissero senza volerlo tra le pratiche ordinarie.
+## Controlli
 
-Inseriti 3 controlli preventivi obbligatori (tenant/id, importo, documenti) prima di applicare la logica di categoria.
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
 
-## Riepilogo (Delta prima e dopo)
+## Com'è fatto
 
-Primo report: 
-    nova    N-001  ordinaria      Preventivo vetro
-    nova    N-002  da_completare  Fattura carrozzeria
-    nova    N-003  ordinaria      Ricevuta farmacia
-    nova    N-004  ordinaria      Preventivo tetto
-    nova    N-005  da_rivedere    Perizia allagamento
-    nova    N-006  da_rivedere    Foto danno auto
-    aurora  N-001  ordinaria      Cristallo anteriore
-    nova    N-007  da_completare  Visita specialistica
-    aurora  N-008  da_rivedere    Danno da grandine
+| Modulo | Che cosa fa |
+|---|---|
+| `nova/regole.py` | contiene le regole di smistamento, conversione degli importi (non legge da file e non stampa) |
+| `nova/smistamento.py` | filtra i doppioni, applicare le regole e calcolare i totali (non legge da file e non stampa) |
+| `nova/archivio.py` | legge il flusso dal file JSON e converte i formati numerici |
+| `nova/__main__.py` | coordina la lettura, esegue lo smistamento, stampa i risultati e restituisce il codice d'uscita appropriato |
 
-    Lette: 11   Smistate: 9   Duplicati scartati: 2
-    da_completare  2
-    da_rivedere    3
-    ordinaria      4
+## La regola
 
-Report con Estensione Portale:
+| condizione, nell'ordine | categoria |
+|---|---|
+| importo assente (`None`) | `da_completare` |
+| importo di almeno 100000 centesimi, oppure meno di 2 documenti | `da_rivedere` |
+| altrimenti | `ordinaria` |
 
-    === RIEPILOGO SMISTAMENTO PORTALE ===
-    nova    W-101  ordinaria      Occhiali da vista
-    nova    W-102  da_completare  Fisioterapia
-    nova    W-104  ordinaria      Analisi del sangue
-
-    Lette: 5   Smistate con successo: 3   Segnalazioni Ivan: 2
-    da_completare  1
-    da_rivedere    0
-    ordinaria      2
-
-    Dettaglio segnalazioni per Ivan (Bug portale):
-    - Bug portale: chiave 'importo_centesimi' assente per ('nova', 'W-103')
-    - Bug portale: chiave 'documenti' assente per ('nova', 'W-105')
-
-## Politica sui duplicati
-
-Teniamo la prima occorrenza e scartiamo la seconda.
-Ciò che arriva per primo fa fede cronologicamente; eventuali reinvii successivi senza modifiche strutturali sono considerati duplicati innocui da ignorare per non alterare la sequenza originale di elaborazione.
-
-## Revisione del codice scritto con l'AI
-- Evitato l'uso di if importo: per non confondere l'importo a zero con un campo mancante.
-- Utilizzato richiesta.copy() per preservare intatto il lotto originale in ingresso.
-- Evitato .get() silenzioso sui campi obbligatori per fare emergere i KeyError.
-- Gestione sicura delle stringhe nei documenti tramite int() protetto da try/except.
+Una pratica è identificata dalla coppia `(tenant, id)`. Se arriva due volte, si conserva la prima occorrenza.
+Il gestionale esporta l'importo come testo in centesimi e un importo non compilato come stringa vuota; un importo che
+non è un intero o è negativo ferma la lettura del lotto.
 
 
-## Prova del collega
-Tempo impiegato: 2 minuti.
-Nessun blocco eseguendo il comando da terminale pulito.
+# Esercitazione G1: sviluppo estensione 3, lettura dei dati dal portale web
 
-## Riepilogo da code bluprint:
+    ## Strada scelta e difesa
 
+        Si è optato per l'estensione 3, quindi quella di distinguere rigorosamente tra campi mancanti nel portale (segnalati a Ivan come anomalia tecnica) e valori None (pratiche da far completare al cliente).
 
+        Evitando l'uso indiscriminato di .get() sui dati obbligatori per impedire che errori strutturali del portale finissero senza volerlo tra le pratiche ordinarie.
+
+        Inseriti 3 controlli preventivi obbligatori (tenant/id, importo, documenti) prima di applicare la logica di categoria.
+
+    ## Riepilogo (Delta prima e dopo)
+
+        Report prima dell'estensione: 
+            nova    N-001  ordinaria      Preventivo vetro
+            nova    N-002  da_completare  Fattura carrozzeria
+            nova    N-003  ordinaria      Ricevuta farmacia
+            nova    N-004  ordinaria      Preventivo tetto
+            nova    N-005  da_rivedere    Perizia allagamento
+            nova    N-006  da_rivedere    Foto danno auto
+            aurora  N-001  ordinaria      Cristallo anteriore
+            nova    N-007  da_completare  Visita specialistica
+            aurora  N-008  da_rivedere    Danno da grandine
+
+            Lette: 11   Smistate: 9   Duplicati scartati: 2
+            da_completare  2
+            da_rivedere    3
+            ordinaria      4
+
+        Report con Estensione Portale:
+
+            === RIEPILOGO SMISTAMENTO PORTALE ===
+            nova    W-101  ordinaria      Occhiali da vista
+            nova    W-102  da_completare  Fisioterapia
+            nova    W-104  ordinaria      Analisi del sangue
+
+            Lette: 5   Smistate con successo: 3   Segnalazioni Ivan: 2
+            da_completare  1
+            da_rivedere    0
+            ordinaria      2
+
+            Dettaglio segnalazioni per Ivan (Bug portale):
+            - Bug portale: chiave 'importo_centesimi' assente per ('nova', 'W-103')
+            - Bug portale: chiave 'documenti' assente per ('nova', 'W-105')
+
+     ## Revisione del codice scritto con l'AI
+
+        - Evitato l'uso di if importo: per non confondere l'importo a zero con un campo mancante.
+        - Utilizzato richiesta.copy() per preservare intatto il lotto originale in ingresso.
+        - Evitato .get() silenzioso sui campi obbligatori per fare emergere i KeyError.
+        - Gestione sicura delle stringhe nei documenti tramite int() protetto da try/except.
 
