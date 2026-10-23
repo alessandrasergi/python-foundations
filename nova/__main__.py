@@ -6,11 +6,11 @@ from pathlib import Path
 from nova.archivio import leggi_lotto
 from nova.smistamento import conteggi, smista
 
-PERCORSO_PREDEFINITO = Path("dati") / "lotto.json"
+PERCORSO_PREDEFINITO = Path("dati") / "lotto.jsonl"
 
 
 def main(argomenti: list[str]) -> int:
-    # legge il lotto di pratiche da un file JSON, lo smista e stampa un riepilogo
+    """Smista il lotto indicato, o quello predefinito, e restituisce il codice di uscita."""
     percorso = Path(argomenti[0]) if argomenti else PERCORSO_PREDEFINITO
     try:
         lotto = leggi_lotto(percorso)
@@ -20,7 +20,8 @@ def main(argomenti: list[str]) -> int:
 
     smistate, duplicati = smista(lotto)
     for pratica in smistate:
-        print(f"{pratica['tenant']:<7} {pratica['id']:<6} {pratica['categoria']:<14} {pratica['oggetto']}")
+        richiesta = pratica.richiesta
+        print(f"{richiesta.tenant:<7} {richiesta.id:<6} {pratica.categoria:<14} {richiesta.oggetto}")
     print()
     print(f"Lette: {len(lotto)}   Smistate: {len(smistate)}   Duplicati scartati: {len(duplicati)}")
     for nome, numero in conteggi(smistate).items():

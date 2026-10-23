@@ -29,6 +29,8 @@ uv run ruff format --check .
 
 | Modulo | Che cosa fa |
 |---|---|
+| `nova/modelli.py` | `Richiesta`, il modello Pydantic che valida al confine, e `PraticaSmistata`, la richiesta con la sua categoria |
+| `nova/flussi.py` | il lettore JSONL: un generatore che consegna una riga alla volta con il suo numero |
 | `nova/regole.py` | contiene le regole di smistamento, conversione degli importi (non legge da file e non stampa) |
 | `nova/smistamento.py` | filtra i doppioni, applicare le regole e calcolare i totali (non legge da file e non stampa) |
 | `nova/archivio.py` | legge il flusso dal file JSON e converte i formati numerici |
@@ -130,3 +132,31 @@ non è un intero o è negativo ferma la lettura del lotto.
         Tempo impiegato: 6 minuti.
 
         Primo blocco riscontrato: Esecuzione iniziale di pytest senza passare attraverso il gestore di ambiente (uv run). Risolto seguendo le istruzioni esplicite presenti nel README.
+
+
+# Esercitazione G3: sviluppo estensione 3, il riepilogo come oggetto
+
+    #Scelta della strada e motivazioni
+    Incapsulamento dei conteggi di smistamento in una dataclass congelata (frozen=True) con metodi nativi per il calcolo dei totali e delle quote percentuali.
+
+        - Immutabilità e sicurezza: Protezione dello stato del riepilogo per impedire modifiche accidentali dopo il calcolo, garantendo la coerenza dei dati passati ai log o ai flussi successivi.
+
+        - Incapsulamento della logica: Spostamento dei calcoli statistici (somme, percentuali) dall'interfaccia o dal modulo principale direttamente all'oggetto, migliorando la manutenibilità e la coesione del codice.
+
+        - Resilienza contro i edge cases: Gestione sicura della divisione per zero nel calcolo delle quote in presenza di lotti vuoti, e utilizzo di default_factory per prevenire il rischio di condivisione di dizionari mutabili tra le istanze.
+
+    #Misure prima e dopo
+        - Prima (Dizionari sparsi e logica procedurale): Conteggi gestiti tramite semplici dizionari nel main, calcoli percentuali duplicati e logica di stampa dispersa.
+
+        - Dopo (Oggetto riepilogo tipizzato e immutabile): Codice pulito, fortemente tipizzato con mypy, con rappresentazione testuale integrata (__str__) e logica di business centralizzata.
+
+    #Revisione del codice scritto con l'AI
+        Il supporto dell'intelligenza artificiale ha permesso di impostare rapidamente la dataclass congelata e di intercettare correttamente la classica trappola della default_factory per i dizionari in Python.
+
+    Rilievo deciso di non correggere: 
+        Si è scelto di non inserire un controllo dinamico complesso sulle chiavi delle categorie all'interno del costruttore della dataclass, poiché l'insieme delle categorie è già chiuso, noto e rigorosamente validato a monte dal modulo delle regole.
+
+    #Test di usabilità (Prova del collega)
+        Tempo impiegato: 5 minuti.
+
+        Primo blocco riscontrato: Tentativo iniziale di assegnare un dizionario direttamente come valore predefinito nel campo della dataclass, bloccato dall'eccezione nativa di Python sulla mutabilità. Risolto applicando correttamente la `default_factory` con una lambda function.
