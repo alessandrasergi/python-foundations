@@ -1,40 +1,65 @@
 # nova-smistamento
 
-Strumento per elaborare i pacchetti di richieste che il sistema di Nova Assicurazioni genera quotidianamente. Il programma assegna a ciascuna pratica un'etichetta ben definita (`da_completare`, `da_rivedere` o `ordinaria`) e chiude con il resoconto numerico complessivo. 
+Smista le richieste di rimborso di Nova Assicurazioni: ogni pratica esce con una categoria (`da_completare`,
+`da_rivedere`, `ordinaria`). Funziona in due modi: come comando che smista un lotto in locale, e come servizio HTTP
+che riceve le pratiche una alla volta, con un client che gli invia un lotto intero. I dati sono sintetici e le
+categorie sono convenzioni di laboratorio: non autorizzano rimborsi.
 
 ## Requisiti
 
 - [uv](https://docs.astral.sh/uv/) installato. Python 3.12 lo procura uv da sé.
 
-## Come si avvia
-
-Dalla cartella del progetto principale dove trovi il file `pyproject.toml`:
+## Configurazione
 
 ```bash
-uv run python -m nova                              # analizza il file predefinito dati/lotto.json
-uv run python -m nova dati/lotto_con_errori.json   # si blocca segnalando l'anomalia da corregere
+cp .env.example .env          # su Windows: Copy-Item .env.example .env
+uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Il codice di uscita è `0` se il lotto è stato smistato, `1` se il file non si legge o una richiesta non è valida.
+Incolla il valore generato in `.env`, dopo `NOVA_CHIAVE_SERVIZIO=`. Il file `.env` resta sulla tua macchina: è
+escluso da Git. Ogni variabile si può anche impostare nell'ambiente, che prevale sul file.
+
+| Variabile | Che cosa fa | Predefinito |
+|---|---|---|
+| `NOVA_CHIAVE_SERVIZIO` | la chiave che il client manda e il servizio controlla | nessuno: obbligatoria |
+| `NOVA_URL_SERVIZIO` | dove il client trova il servizio | `http://127.0.0.1:8000` |
+| `NOVA_CONCORRENZA_MASSIMA` | quante richieste il client manda insieme | `4` |
+| `NOVA_TIMEOUT_SECONDI` | quanto il client aspetta ogni operazione di rete | `5` |
+
+## Come si avvia
+
+Dalla cartella del progetto:
+
+```bash
+uv run python -m nova                          # smista dati/lotto.jsonl in locale
+uv run uvicorn nova.servizio:app               # il servizio, su http://127.0.0.1:8000
+uv run python -m nova.invio                    # in un secondo terminale: invia il lotto al servizio
+```
+
+La documentazione interattiva del servizio è su `http://127.0.0.1:8000/docs`. `python -m nova` esce con `1` se il
+lotto non si legge o una riga è rifiutata. `python -m nova.invio` esce con `1` se l'invio non parte o si interrompe, e con `0` anche
+quando qualche pratica è scaduta o rifiutata: gli esiti dicono quali.
+
+## Il servizio
+
+| Metodo e percorso | Che cosa fa | Risposte |
+|---|---|---|
+| `GET /health` | stato e numero di pratiche registrate | `200` |
+| `POST /pratiche` | smista e registra una richiesta | `201`, `401`, `409` se già registrata, `422` se i dati non vanno |
+| `GET /pratiche/{tenant}/{id}` | legge una pratica registrata | `200`, `401`, `404` |
+| `GET /riepilogo` | conteggi per categoria | `200`, `401` |
+
+Tutto tranne `/health` richiede l'intestazione `X-Chiave-Servizio`. Il registro vive in memoria e si svuota quando
+il servizio si ferma.
 
 ## Controlli
 
 ```bash
 uv run pytest
+uv run mypy nova
 uv run ruff check .
 uv run ruff format --check .
 ```
-
-## Com'è fatto
-
-| Modulo | Che cosa fa |
-|---|---|
-| `nova/modelli.py` | `Richiesta`, il modello Pydantic che valida al confine, e `PraticaSmistata`, la richiesta con la sua categoria |
-| `nova/flussi.py` | il lettore JSONL: un generatore che consegna una riga alla volta con il suo numero |
-| `nova/regole.py` | contiene le regole di smistamento, conversione degli importi (non legge da file e non stampa) |
-| `nova/smistamento.py` | filtra i doppioni, applicare le regole e calcolare i totali (non legge da file e non stampa) |
-| `nova/archivio.py` | legge il flusso dal file JSON e converte i formati numerici |
-| `nova/__main__.py` | coordina la lettura, esegue lo smistamento, stampa i risultati e restituisce il codice d'uscita appropriato |
 
 ## La regola
 
@@ -44,9 +69,8 @@ uv run ruff format --check .
 | importo di almeno 100000 centesimi, oppure meno di 2 documenti | `da_rivedere` |
 | altrimenti | `ordinaria` |
 
-Una pratica è identificata dalla coppia `(tenant, id)`. Se arriva due volte, si conserva la prima occorrenza.
-Il gestionale esporta l'importo come testo in centesimi e un importo non compilato come stringa vuota; un importo che
-non è un intero o è negativo ferma la lettura del lotto.
+Una pratica è identificata dalla coppia `(tenant, id)`. Nel lotto si conserva la prima occorrenza; il servizio
+rifiuta con `409` una pratica già registrata, quindi rilanciare l'invio non crea doppioni.
 
 
 # Esercitazione G1: sviluppo estensione 3, lettura dei dati dal portale web
