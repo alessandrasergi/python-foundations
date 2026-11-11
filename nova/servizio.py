@@ -95,3 +95,24 @@ async def riepilogo(request: Request, x_chiave_servizio: str | None = Header(def
     """Quante pratiche registrate per categoria."""
     verifica_chiave(request, x_chiave_servizio)
     return conteggi(registro(request).values())
+
+@app.get("/pratiche/categoria/{nome_categoria}")
+async def leggi_per_categoria( 
+    nome_categoria: str,
+    request: Request,
+    x_chiave_servizio: str | None = Header(default=None),
+) -> list[PraticaRegistrata]:
+    """Restituisce tutte le pratiche registrate di una certa categoria, o 422 se la categoria non è valida."""
+    
+    verifica_chiave(request, x_chiave_servizio)
+
+    categorie_valide = {"ordinaria", "da_rivedere", "da_completare"}
+    if nome_categoria not in categorie_valide:
+        raise HTTPException(
+            status_code=422, 
+            detail=f"categoria '{nome_categoria}' non valida. Categorie ammesse: {list(categorie_valide)}"
+        )
+
+    pratiche = registro(request).values()
+    filtrate = [risposta(p) for p in pratiche if p.categoria == nome_categoria]
+    return filtrate
