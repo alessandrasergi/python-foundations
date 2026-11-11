@@ -62,8 +62,8 @@ def leggi_lotto(percorso: Path) -> list[Richiesta]:
             except ValidationError as errore:
                 raise ValueError(f"{dove}: {descrivi(errore)}") from errore
             except ValueError as errore:
-                importo_val = item.get('importo_centesimi') if isinstance(item, dict) else None
-                raise ValueError(f"{dove}: importo non valido {importo_val!r}") from errore
+                id_req = item.get('id', 'Senza ID') if isinstance(item, dict) else 'Senza ID'
+                raise ValueError(f"richiesta n. {indice} ({id_req}): importo non valido") from errore
             lotto.append(richiesta)
         return lotto
 
@@ -76,7 +76,7 @@ def leggi_lotto(percorso: Path) -> list[Richiesta]:
             except ValidationError as errore:
                 raise ValueError(f"{dove}: {descrivi(errore)}") from errore
             except ValueError as errore:
-                importo_val = riga.get('importo_centesimi') if isinstance(riga, dict) else None
-                raise ValueError(f"{dove}: importo non valido {importo_val!r}") from errore
+                id_req = riga.get('id', 'Senza ID') if isinstance(riga, dict) else 'Senza ID'
+                raise ValueError(f"richiesta n. {numero} ({id_req}): importo non valido") from errore
             lotto.append(richiesta)
     return lotto
