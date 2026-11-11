@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Richiesta(BaseModel):
@@ -65,3 +65,14 @@ class Riepilogo:
             for cat, num in self.conteggi.items()
         ]
         return f"Totale pratiche: {self.totale}\n" + "\n".join(dettagli)
+
+@field_validator("oggetto", mode="before")
+@classmethod
+def pulisci_oggetto(cls, v: str) -> str:
+    """Rimuove spazi iniziali e finali dall'oggetto, e rifiuta oggetti vuoti o composti solo da spazi."""
+    if isinstance(v, str):
+        ripulito = v.strip()
+        if not ripulito:
+            raise ValueError("l'oggetto non può essere vuoto o composto solo da spazi")
+        return ripulito
+    return v
