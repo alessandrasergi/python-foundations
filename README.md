@@ -184,3 +184,26 @@ rifiuta con `409` una pratica già registrata, quindi rilanciare l'invio non cre
         Tempo impiegato: 5 minuti.
 
         Primo blocco riscontrato: Tentativo iniziale di assegnare un dizionario direttamente come valore predefinito nel campo della dataclass, bloccato dall'eccezione nativa di Python sulla mutabilità. Risolto applicando correttamente la `default_factory` con una lambda function.
+
+# Esercitazione G4: sviluppo estensione 4, Confine HTTP e filtraggio per categoria
+    # Scelta della strada e motivazioni
+    Implementazione dell'Estensione 4 (Confine HTTP e filtraggio per categoria)
+
+    - Pulizia e sicurezza ai confini: Utilizzo di `field_validator` sul campo oggetto per rimuovere gli spazi superflui ed intercettare a monte stringhe composte unicamente da spazi vuoti.
+    - Contratti API rigorosi: Introduzione dell'endpoint `/pratiche/categoria/{nome_categoria}` che valida la categoria richiesta contro un set chiuso e noto, rispondendo con un errore `422 Unprocessable Entity` in caso di categoria errata anziché restituire collezioni vuote.
+    - Resilienza e testabilità: Allineamento del parser dei lotti per preservare l'esatto tracciamento dell'ID e della riga nelle eccezioni, garantendo il superamento dell'intera suite di test.
+
+    # Misure prima e dopo
+    - Prima (Validazione lassa e assenza di filtraggio mirato):** Oggetti non normalizzati agli estremi e impossibilità di interrogare il servizio per singola categoria con gestione formale degli errori di validazione HTTP.
+    - Dopo (Confini HTTP blindati e API REST difensiva):** Modelli protetti da spazi sporchi, endpoint di filtraggio tipizzati e conformi ai codici di stato standard (`401`, `409`, `422`).
+
+    # Revisione del codice scritto con l'AI
+    Il supporto dell'intelligenza artificiale è stato utile per impostare rapidamente il validatore personalizzato in Pydantic e per strutturare la gestione del codice di stato `422` nel router di FastAPI.
+
+    Rilievo deciso di non correggere: 
+    Si è scelto di non introdurre una persistenza dinamica complessa per le categorie, mantenendo un set statico e validato a monte per preservare la semplicità e la prevedibilità del servizio.
+
+    # Test di usabilità
+    Tempo impiegato: 4 minuti.
+
+    Primo blocco riscontrato: Mancato allineamento iniziale nel formato delle eccezioni sollevate dal parser dei lotti rispetto alle aspettative dei test automatizzati. Risolto arricchendo il messaggio d'errore con l'estrazione puntuale dell'ID e del numero di riga.
